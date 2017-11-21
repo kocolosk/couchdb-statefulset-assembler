@@ -8,10 +8,9 @@ import time
 import dns.resolver
 
 def discover_peers_dns(retries=5):
-    # Assumes svc.cluster.local is in the DNS search space ...
-    resource = '_couchdb._tcp.{0}.{1}'.format(
-        os.environ.get("COUCHDB_SERVICE", "couchdb"),
-        os.environ.get("POD_NAMESPACE", "default")
+    # Assumes <namespace>.svc.cluster.local is in the DNS search space ...
+    resource = '_couchdb._tcp.{0}'.format(
+        os.environ.get("COUCHDB_SERVICE", "couchdb")
     )
     if retries > 0:
         try:
