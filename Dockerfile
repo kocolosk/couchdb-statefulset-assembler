@@ -2,7 +2,7 @@ FROM python:alpine
 
 MAINTAINER Adam Kocoloski kocolosk@apache.org
 
-RUN pip install requests dnspython
+RUN pip install requests dnspython backoff
 
 COPY mem3_helper.py /opt/mem3_helper/
 
