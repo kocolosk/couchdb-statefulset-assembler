@@ -35,6 +35,10 @@ def connect_the_dots(names, retries=5):
             doc = {}
             try:
                 r = requests.put(uri, data = json.dumps(doc))
+                if r.status_code == 404:
+                    print('CouchDB nodes DB does not exist yet')
+                    time.sleep(5)
+                    connect_the_dots(names, retries - 1)
                 print(name, r.status_code)
             except requests.exceptions.ConnectionError:
                 print('CouchDB admin port not up yet')
