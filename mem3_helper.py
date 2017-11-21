@@ -1,5 +1,9 @@
-# This file grabs the list of pod names behind the headless service
-# called "couchdb" and feeds those as `couchdb@HOSTNAME` nodes to mem3.
+"""Helper module to connect a CouchDB Kube StatefulSet
+
+This script grabs the list of pod names behind the headless service
+associated with our StatefulSet and feeds those as `couchdb@FQDN`
+nodes to mem3.
+"""
 
 import json
 import requests
@@ -34,12 +38,12 @@ def connect_the_dots(names, retries=5):
             uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
             doc = {}
             try:
-                r = requests.put(uri, data = json.dumps(doc))
-                if r.status_code == 404:
+                resp = requests.put(uri, data=json.dumps(doc))
+                if resp.status_code == 404:
                     print('CouchDB nodes DB does not exist yet')
                     time.sleep(5)
                     connect_the_dots(names, retries - 1)
-                print(name, r.status_code)
+                print(name, resp.status_code)
             except requests.exceptions.ConnectionError:
                 print('CouchDB admin port not up yet')
                 time.sleep(5)
