@@ -2,16 +2,16 @@
 # called "couchdb" and feeds those as `couchdb@HOSTNAME` nodes to mem3.
 
 import json
-import os
 import requests
 import time
 import dns.resolver
+import socket
 
 def discover_peers_dns(retries=5):
-    # Assumes <namespace>.svc.cluster.local is in the DNS search space ...
-    resource = '_couchdb._tcp.{0}'.format(
-        os.environ.get("COUCHDB_SERVICE", "couchdb")
-    )
+    # Drop our Pod's unique identity and replace with '_couchdb._tcp'
+    # to form the name of the SRV record
+    resource = '.'.join(['_couchdb', '_tcp'] + socket.getfqdn().split('.')[1:])
+    print ('SRV record', resource)
     if retries > 0:
         try:
             answers = dns.resolver.query(resource, 'SRV')
@@ -53,5 +53,4 @@ def sleep_forever():
         time.sleep(5)
 
 if __name__ == '__main__':
-    print(os.environ)
     discover_peers_dns()
