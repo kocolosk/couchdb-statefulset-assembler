@@ -11,6 +11,7 @@ import time
 import dns.resolver
 import socket
 import backoff
+import os
 
 def construct_service_record():
     # Drop our Pod's unique identity and replace with '_couchdb._tcp'
@@ -35,10 +36,14 @@ def discover_peers(service_record):
     max_tries=10
 )
 def connect_the_dots(names):
+    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
     for name in names:
         uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
         doc = {}
-        resp = requests.put(uri, data=json.dumps(doc))
+        if creds[0] and creds[1]:
+            resp = requests.put(uri, data=json.dumps(doc), auth=creds)
+        else:
+            resp = requests.put(uri, data=json.dumps(doc))
         while resp.status_code == 404:
             print('Waiting for _nodes DB to be created ...')
             time.sleep(5)
