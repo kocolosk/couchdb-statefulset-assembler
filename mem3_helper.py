@@ -15,7 +15,7 @@ import os
 
 def construct_service_record():
     # Drop our Pod's unique identity and replace with '_couchdb._tcp'
-    return '.'.join(['_couchdb', '_tcp'] + socket.getfqdn().split('.')[1:])
+    return os.getenv('SRV_RECORD') or '.'.join(['_couchdb', '_tcp'] + socket.getfqdn().split('.')[1:])
 
 @backoff.on_exception(
     backoff.expo,
