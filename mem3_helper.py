@@ -98,7 +98,7 @@ def finish_cluster(names):
         print ("=== Adding nodes to CouchDB cluster via the “setup coordination node” ===")
         for name in names:
             # Exclude "this" pod
-            if (name.split(".", 1) != os.getenv("HOSTNAME")):
+            if (name.split(".",1)[0]) != os.getenv("HOSTNAME")):
                 # action: enable_cluster
                 payload = {}
                 payload['action'] = 'enable_cluster'
@@ -194,6 +194,8 @@ def sleep_forever():
 if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
     print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
+    if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
+        enable_cluster(len(peer_names))
     connect_the_dots(peer_names)
     print('Cluster membership populated!')
     if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
