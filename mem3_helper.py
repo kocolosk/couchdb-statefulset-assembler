@@ -63,13 +63,16 @@ def ordered(obj):
     else:
         return obj
 
+# Run action:finish_cluster on one and only one CouchDB cluster node
 def finish_cluster(names):
     # The HTTP POST to /_cluster_setup should be done to
     # one (and only one) of the CouchDB cluster nodes.
+    # Search for "setup coordination node" in
+    # http://docs.couchdb.org/en/stable/cluster/setup.html
     # Given that K8S has a standardized naming for the pods:
     # https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-identity
-    # we can make sure that this code is only bing run
-    # on the "first" pod using this hack:
+    # we can make sure that this code runs
+    # on the "first" pod only with this hack:
     print('HOSTNAME={0}'.format(os.getenv("HOSTNAME")))
     if (os.getenv("HOSTNAME").endswith("-0")):
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
@@ -88,8 +91,6 @@ def finish_cluster(names):
             remote_membership_uri = "http://{0}:5984/_membership".format(name)
             if creds[0] and creds[1]:
                 remote_resp = requests.get(remote_membership_uri,  auth=creds)
-            else:
-                remote_resp = requests.get(remote_membership_uri)
             # Compare local and remote _mebership data. Make sure the set
             # of nodes match. This will ensure that the remote nodes
             # are fully primed with nodes data before progressing with
@@ -102,14 +103,23 @@ def finish_cluster(names):
                 time.sleep(5)
                 if creds[0] and creds[1]:
                     remote_resp = requests.get(remote_membership_uri,  auth=creds)
-                else:
-                    remote_resp = requests.get(remote_membership_uri)
-            print("CouchDB cluster peer {} ready to form a cluster".format(name))
+            # The node in <name> is primed
+            # http://docs.couchdb.org/en/stable/cluster/setup.html
+
+            # action: enable_cluster
+            payload = '"action": "enable_cluster", "bind_address":"0.0.0.0", "username":"{0}", "password":"{1}", "port": 5984, "node_count":"{2}"  "remote_node": "{3}", "remote_current_user": "{0}", "remote_current_password": "{1}"'.format(creds[0],creds[1],nr_of_peers,name)
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={payload},  auth=creds)
+            print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",payload)
+
+            # action: add_node
+            payload = '"action": "add_node", "host":"{0}", "port": 5984, "username": "{1}", "password":"{2}"'.format(name, creds[0],creds[1])
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={payload},  auth=creds)
+            print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",payload)
+
+            print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
         if creds[0] and creds[1]:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
-        else:
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"})
         if (setup_resp.status_code == 201):
             print("CouchDB cluster setup done. Time to relax!")
         else:
@@ -117,6 +127,13 @@ def finish_cluster(names):
     else:
         print("This pod is intentionally skipping the call to http://127.0.0.1:5984/_cluster_setup")
 
+# Run action:enable_cluster on every CouchDB cluster node
+def enable_cluster(nr_of_peers):
+    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
+    if creds[0] and creds[1]:
+        # http://docs.couchdb.org/en/stable/cluster/setup.html
+        payload = '"action": "enable_cluster", "bind_address":"0.0.0.0", "{0}}": "admin", "{1}}":"password", "node_count":"{2}"'.format(creds[0],creds[1],nr_of_peers)
+        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={payload},  auth=creds)
 
 def sleep_forever():
     while True:
@@ -127,5 +144,9 @@ if __name__ == '__main__':
     print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
     connect_the_dots(peer_names)
     print('Cluster membership populated!')
-    finish_cluster(peer_names)
+    if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
+        enable_cluster(len(peer_names))
+        finish_cluster(peer_names)
+    else:
+        print ('Skipping cluster setup. Username and/or password not provided')
     sleep_forever()
