@@ -67,7 +67,7 @@ def finish_cluster(names):
     # https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-identity
     # we can make sure that this code is only bing run
     # on the "first" pod using this hack:
-    if True or (os.getenv("HOSTNAME").endswith("_0")):
+    if (os.getenv("HOSTNAME").endswith("_0")):
         # Make sure that ALL CouchDB cluster peers have been
         # primed with _nodes data before /_cluster_setup
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
@@ -77,32 +77,30 @@ def finish_cluster(names):
         else:
             local_resp = requests.get("http://{0}127.0.0.1:5984/_members")
         for name in names:
-            print("Probing. Checking {0}".format(name))
+            print("Probing node {0} for _members".format(name))
             if creds[0] and creds[1]:
                 remote_resp = requests.get("http://{0}:5984/_members".format(name),  auth=creds)
             else:
                 remote_resp = requests.get("http://{0}:5984/_members".format(name))
             while (remote_resp.status_code == 404) or (ordered(local_resp.json()) != ordered(remote_resp.json())):
-                print('Waiting for node {0} to be ready'.format(name))
+                print('Waiting for node {0} to have all node members populated'.format(name))
                 time.sleep(5)
                 if creds[0] and creds[1]:
                     remote_resp = requests.get("http://{0}:5984/_members".format(name),  auth=creds)
                 else:
                     remote_resp = requests.get("http://{0}:5984/_members".format(name))
-            print("CouchDB cluster member {} ready to form a cluster".format(name))
+            print("CouchDB cluster peer {} ready to form a cluster".format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
         if creds[0] and creds[1]:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         else:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"})
         if (setup_resp.status_code == requests.codes.ok):
-            print("CouchDB cluster done. Time to relax!")
+            print("CouchDB cluster setup done. Time to relax!")
         else:
             print('Ouch! Failed the final step: http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
     else:
         print("This pod is intentionally skipping the call to http://127.0.0.1:5984/_cluster_setup")
-
-
 
 
 def sleep_forever():
