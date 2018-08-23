@@ -44,7 +44,7 @@ def connect_the_dots(names):
             resp = requests.put(uri, data=json.dumps(doc), auth=creds)
         else:
             resp = requests.put(uri, data=json.dumps(doc))
-        while resp.status_code == 404:
+        while resp.status_code != 201:
             print('Waiting for _nodes DB to be created ...', flush=True)
             time.sleep(5)
             if creds[0] and creds[1]:
@@ -70,7 +70,8 @@ def finish_cluster(names):
     # https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-identity
     # we can make sure that this code is only bing run
     # on the "first" pod using this hack:
-    if (os.getenv("HOSTNAME").endswith("_0")):
+    print('HOSTNAME={0}'.format(os.getenv("HOSTNAME")))
+    if (os.getenv("HOSTNAME").endswith("-0")):
         # Make sure that ALL CouchDB cluster peers have been
         # primed with _nodes data before /_cluster_setup
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
@@ -87,7 +88,7 @@ def finish_cluster(names):
                 remote_resp = requests.get("http://{0}:5984/_membership".format(name),  auth=creds)
             else:
                 remote_resp = requests.get("http://{0}:5984/_membership".format(name))
-            while (remote_resp.status_code == 404) or (ordered(local_resp.json()) != ordered(remote_resp.json())):
+            while (remote_resp.status_code != 200) or (ordered(local_resp.json()) != ordered(remote_resp.json())):
                 print('Waiting for node {0} to have all node members populated'.format(name),flush=True)
                 time.sleep(5)
                 if creds[0] and creds[1]:
@@ -100,7 +101,7 @@ def finish_cluster(names):
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         else:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"})
-        if (setup_resp.status_code == requests.codes.ok):
+        if (setup_resp.status_code == 201):
             print("CouchDB cluster setup done. Time to relax!")
         else:
             print('Ouch! Failed the final step: http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
