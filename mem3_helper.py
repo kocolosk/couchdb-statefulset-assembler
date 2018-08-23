@@ -119,6 +119,7 @@ def sleep_forever():
 
 if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
+    print('Got the following peers fqdm from DNS lookup:',peer_names,flush=True)
     connect_the_dots(peer_names)
     print('Cluster membership populated!')
     finish_cluster(peer_names)
