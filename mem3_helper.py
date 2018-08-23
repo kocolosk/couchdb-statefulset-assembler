@@ -151,7 +151,7 @@ def enable_cluster(nr_of_peers):
         payload['bind_address'] = '0.0.0.0'
         payload['username'] = creds[0]
         payload['password'] = creds[1]
-        payload['node_count'] = len(names)
+        payload['node_count'] = nr_of_peers
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
         print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
