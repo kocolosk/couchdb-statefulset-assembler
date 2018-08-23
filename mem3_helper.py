@@ -58,7 +58,7 @@ def enable_cluster(nr_of_peers):
     creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
     if creds[0] and creds[1]:
         headers = {'Content-type': 'application/json'}
-        print ("== Enabling cluster mode ===")
+        print ("=== Enabling cluster mode ===")
         # http://docs.couchdb.org/en/stable/cluster/setup.html
         payload = {}
         payload['action'] = 'enable_cluster'
@@ -68,8 +68,8 @@ def enable_cluster(nr_of_peers):
         payload['node_count'] = nr_of_peers
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
         payload['password'] = "**masked**"
-        print ("\tRequest: http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
-        print ("\tResponse:", setup_resp)
+        print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
+        print ("\tResponse:", setup_resp.status_code, setup_resp.json())
 
 # Compare (json) objects - order does not matter. Credits to:
 # https://stackoverflow.com/a/25851972
@@ -91,7 +91,6 @@ def finish_cluster(names):
     # https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-identity
     # we can make sure that this code runs
     # on the "first" pod only with this hack:
-    print('HOSTNAME={0}'.format(os.getenv("HOSTNAME")))
     if (os.getenv("HOSTNAME").endswith("-0")):
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
         # Make sure that ALL CouchDB cluster peers have been
@@ -124,7 +123,7 @@ def finish_cluster(names):
             print("Node {0} has all node members in place!".format(name))
             # The node in <name> is primed
             # http://docs.couchdb.org/en/stable/cluster/setup.html
-            print ("== Adding nodes to CouchDB cluster via the “setup coordination node” ===")
+            print ("=== Adding nodes to CouchDB cluster via the “setup coordination node” ===")
 
             headers = {'Content-type': 'application/json'}
 
@@ -142,8 +141,8 @@ def finish_cluster(names):
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
             payload['password'] = "**masked**"
             payload['remote_current_password'] = "**masked**"
-            print ("\tRequest: http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
-            print ("\tResponse:", setup_resp)
+            print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json())
 
             # action: add_node
             payload = {}
@@ -154,15 +153,33 @@ def finish_cluster(names):
             payload['host'] = name
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
             payload['password'] = "**masked**"
-            print ("\tRequest: http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
-            print ("\tResponse:", setup_resp)
+            print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json())
 
             print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
-        if creds[0] and creds[1]:
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
+        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         if (setup_resp.status_code == 201):
+            print("== CouchDB cluster setup done! ===")
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup")
             print("CouchDB cluster setup done. Time to relax!")
+            print ("\tRequest: GET http://127.0.0.1:5984/_cluster_setup")
+
+            print("== Creating default databases ===")
+
+            setup_resp=requests.put("http://127.0.0.1:5984/_users",  auth=creds, headers=headers)
+            print ("\tRequest: PUT http://127.0.0.1:5984/_users")
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json())
+
+            setup_resp=requests.put("http://127.0.0.1:5984/_replicator",  auth=creds, headers=headers)
+            print ("\tRequest: PUT http://127.0.0.1:5984/_replicator")
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json())
+
+            setup_resp=requests.put("http://127.0.0.1:5984/_global_changes",  auth=creds, headers=headers)
+            print ("\tRequest: PUT http://127.0.0.1:5984/_global_changes")
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json())
+
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json())
         else:
             print('Ouch! Failed the final step: http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
     else:
