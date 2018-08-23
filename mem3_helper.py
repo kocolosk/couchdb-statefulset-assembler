@@ -67,7 +67,7 @@ def finish_cluster(names):
     # https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-identity
     # we can make sure that this code is only bing run
     # on the "first" pod using this hack:
-    if (os.getenv("HOSTNAME").endswith("_0")):
+    if True or (os.getenv("HOSTNAME").endswith("_0")):
         # Make sure that ALL CouchDB cluster peers have been
         # primed with _nodes data before /_cluster_setup
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
@@ -95,12 +95,12 @@ def finish_cluster(names):
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         else:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"})
-        if (setup_resp.status_code == 200):
+        if (setup_resp.status_code == requests.codes.ok):
             print("CouchDB cluster done. Time to relax!")
         else:
-            print('Ouch! Failed with final step. http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
+            print('Ouch! Failed the final step: http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
     else:
-        print("This pod is not used to call /_setup_cluster")
+        print("This pod is intentionally skipping the call to http://127.0.0.1:5984/_cluster_setup")
 
 
 
@@ -112,6 +112,6 @@ def sleep_forever():
 if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
     connect_the_dots(peer_names)
-    finish_cluster(peer_names)
     print('Cluster membership populated!')
+    finish_cluster(peer_names)
     sleep_forever()
