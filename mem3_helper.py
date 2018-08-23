@@ -23,7 +23,7 @@ def construct_service_record():
     max_tries=10
 )
 def discover_peers(service_record):
-    print ('Resolving SRV record', service_record)
+    print('Resolving SRV record', service_record, flush=True)
     answers = dns.resolver.query(service_record, 'SRV')
     # Erlang requires that we drop the trailing period from the absolute DNS
     # name to form the hostname used for the Erlang node. This feels hacky
@@ -45,10 +45,10 @@ def connect_the_dots(names):
         else:
             resp = requests.put(uri, data=json.dumps(doc))
         while resp.status_code == 404:
-            print('Waiting for _nodes DB to be created ...')
+            print('Waiting for _nodes DB to be created ...', flush=True)
             time.sleep(5)
             resp = requests.put(uri, data=json.dumps(doc))
-        print('Adding cluster member', name, resp.status_code)
+        print('Adding cluster member', name, resp.status_code, flush=True)
 
 # Compare (json) objects - order does not matter. Credits to:
 # https://stackoverflow.com/a/25851972
@@ -72,8 +72,8 @@ def finish_cluster(names):
         # primed with _nodes data before /_cluster_setup
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
         # Use the _members of "this" pod's CouchDB as reference
-        local_members_uri = "http://127.0.0.1:5984/_members"
-        print ("Fetching node mebership from this pod: {0}".format(local_members_uri))
+        local_members_uri = "http://127.0.0.1:5986/_membership"
+        print ("Fetching node mebership from this pod: {0}".format(local_members_uri),flush=True)
         if creds[0] and creds[1]:
             local_resp = requests.get(local_members_uri,  auth=creds)
         else:
@@ -81,16 +81,16 @@ def finish_cluster(names):
         for name in names:
             print("Probing node {0} for _members".format(name))
             if creds[0] and creds[1]:
-                remote_resp = requests.get("http://{0}:5984/_members".format(name),  auth=creds)
+                remote_resp = requests.get("http://{0}:5984/_membership".format(name),  auth=creds)
             else:
-                remote_resp = requests.get("http://{0}:5984/_members".format(name))
+                remote_resp = requests.get("http://{0}:5984/_membership".format(name))
             while (remote_resp.status_code == 404) or (ordered(local_resp.json()) != ordered(remote_resp.json())):
-                print('Waiting for node {0} to have all node members populated'.format(name))
+                print('Waiting for node {0} to have all node members populated'.format(name),flush=True)
                 time.sleep(5)
                 if creds[0] and creds[1]:
-                    remote_resp = requests.get("http://{0}:5984/_members".format(name),  auth=creds)
+                    remote_resp = requests.get("http://{0}:5984/_membership".format(name),  auth=creds)
                 else:
-                    remote_resp = requests.get("http://{0}:5984/_members".format(name))
+                    remote_resp = requests.get("http://{0}:5984/_membership".format(name))
             print("CouchDB cluster peer {} ready to form a cluster".format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
         if creds[0] and creds[1]:
