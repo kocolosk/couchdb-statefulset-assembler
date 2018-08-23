@@ -91,12 +91,11 @@ def finish_cluster(names):
                     remote_resp = requests.get("http://{0}:5984/_members".format(name))
             print("CouchDB cluster member {} ready to form a cluster".format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
-        payload = {}
         if creds[0] and creds[1]:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         else:
             setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"})
-        if setup_resp.status_code == 200:
+        if (setup_resp.status_code == 200):
             print("CouchDB cluster done. Time to relax!")
         else:
             print('Ouch! Failed with final step. http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
