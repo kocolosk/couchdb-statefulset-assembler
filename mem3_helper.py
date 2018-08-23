@@ -45,7 +45,7 @@ def connect_the_dots(names):
         else:
             resp = requests.put(uri, data=json.dumps(doc))
         while resp.status_code != 201:
-            print('Waiting for _nodes DB to be created ...', flush=True)
+            print('Waiting for _nodes DB to be created.',uri,'returned', resp.status_code, flush=True)
             time.sleep(5)
             if creds[0] and creds[1]:
                 resp = requests.put(uri, data=json.dumps(doc), auth=creds)
@@ -119,7 +119,7 @@ def sleep_forever():
 
 if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
-    print('Got the following peers fqdm from DNS lookup:',peer_names,flush=True)
+    print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
     connect_the_dots(peer_names)
     print('Cluster membership populated!')
     finish_cluster(peer_names)
