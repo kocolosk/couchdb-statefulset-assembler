@@ -76,7 +76,7 @@ def finish_cluster(names):
         # primed with _nodes data before /_cluster_setup
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
         # Use the _members of "this" pod's CouchDB as reference
-        local_membership_uri = "http://127.0.0.1:5986/_membership"
+        local_membership_uri = "http://127.0.0.1:5984/_membership"
         print ("Fetching node mebership from this pod: {0}".format(local_membership_uri),flush=True)
         if creds[0] and creds[1]:
             local_resp = requests.get(local_membership_uri,  auth=creds)
