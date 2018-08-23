@@ -76,25 +76,29 @@ def finish_cluster(names):
         # primed with _nodes data before /_cluster_setup
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
         # Use the _members of "this" pod's CouchDB as reference
-        local_members_uri = "http://127.0.0.1:5986/_membership"
-        print ("Fetching node mebership from this pod: {0}".format(local_members_uri),flush=True)
+        local_membership_uri = "http://127.0.0.1:5986/_membership"
+        print ("Fetching node mebership from this pod: {0}".format(local_membership_uri),flush=True)
         if creds[0] and creds[1]:
-            local_resp = requests.get(local_members_uri,  auth=creds)
+            local_resp = requests.get(local_membership_uri,  auth=creds)
         else:
-            local_resp = requests.get(local_members_uri)
+            local_resp = requests.get(local_membership_uri)
         for name in names:
             print("Probing node {0} for _members".format(name))
+            remote_membership_uri = "http://{0}:5984/_membership".format(name)
             if creds[0] and creds[1]:
-                remote_resp = requests.get("http://{0}:5984/_membership".format(name),  auth=creds)
+                remote_resp = requests.get(remote_membership_uri,  auth=creds)
             else:
-                remote_resp = requests.get("http://{0}:5984/_membership".format(name))
+                remote_resp = requests.get(remote_membership_uri)
             while (remote_resp.status_code != 200) or (ordered(local_resp.json()) != ordered(remote_resp.json())):
+                print ("remote_resp.status_code",remote_resp.status_code)
+                print (ordered(local_resp.json()))
+                print (ordered(remote_resp.json()))
                 print('Waiting for node {0} to have all node members populated'.format(name),flush=True)
                 time.sleep(5)
                 if creds[0] and creds[1]:
-                    remote_resp = requests.get("http://{0}:5984/_membership".format(name),  auth=creds)
+                    remote_resp = requests.get(remote_membership_uri,  auth=creds)
                 else:
-                    remote_resp = requests.get("http://{0}:5984/_membership".format(name))
+                    remote_resp = requests.get(remote_membership_uri)
             print("CouchDB cluster peer {} ready to form a cluster".format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
         if creds[0] and creds[1]:
