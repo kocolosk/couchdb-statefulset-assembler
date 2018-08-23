@@ -160,19 +160,6 @@ def finish_cluster(names):
             print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
 
-"""         print("== Creating default databases ===")
-        setup_resp=requests.put("http://127.0.0.1:5984/_users",  auth=creds)
-        print ("\tRequest: PUT http://127.0.0.1:5984/_users")
-        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
-        setup_resp=requests.put("http://127.0.0.1:5984/_replicator",  auth=creds)
-        print ("\tRequest: PUT http://127.0.0.1:5984/_replicator")
-        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
-        setup_resp=requests.put("http://127.0.0.1:5984/_global_changes",  auth=creds)
-        print ("\tRequest: PUT http://127.0.0.1:5984/_global_changes")
-        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json()) """
-
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         if (setup_resp.status_code == 201):
             print("== CouchDB cluster setup done! ===")
