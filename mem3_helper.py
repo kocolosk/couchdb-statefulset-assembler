@@ -98,7 +98,7 @@ def finish_cluster(names):
         print ("=== Adding nodes to CouchDB cluster via the “setup coordination node” ===")
         for name in names:
             # Exclude "this" pod
-            if (name.split(".",1)[0]) != os.getenv("HOSTNAME")):
+            if (name.split(".",1)[0] != os.getenv("HOSTNAME")):
                 # action: enable_cluster
                 payload = {}
                 payload['action'] = 'enable_cluster'
