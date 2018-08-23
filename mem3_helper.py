@@ -146,9 +146,14 @@ def enable_cluster(nr_of_peers):
     creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
     if creds[0] and creds[1]:
         # http://docs.couchdb.org/en/stable/cluster/setup.html
-        payload = '"action": "enable_cluster", "bind_address":"0.0.0.0", "{0}": "admin", "{1}":"password", "node_count":"{2}"'.format(creds[0],creds[1],nr_of_peers)
-        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={payload},  auth=creds)
-        print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",payload)
+        payload = {}
+        payload['action'] = 'enable_cluster'
+        payload['bind_address'] = '0.0.0.0'
+        payload['username'] = creds[0]
+        payload['password'] = creds[1]
+        payload['node_count'] = len(names)
+        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
+        print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
 def sleep_forever():
     while True:
