@@ -47,7 +47,10 @@ def connect_the_dots(names):
         while resp.status_code == 404:
             print('Waiting for _nodes DB to be created ...', flush=True)
             time.sleep(5)
-            resp = requests.put(uri, data=json.dumps(doc))
+            if creds[0] and creds[1]:
+                resp = requests.put(uri, data=json.dumps(doc), auth=creds)
+            else:
+                resp = requests.put(uri, data=json.dumps(doc))
         print('Adding cluster member', name, resp.status_code, flush=True)
 
 # Compare (json) objects - order does not matter. Credits to:
