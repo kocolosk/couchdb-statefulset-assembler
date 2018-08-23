@@ -106,6 +106,8 @@ def finish_cluster(names):
             # The node in <name> is primed
             # http://docs.couchdb.org/en/stable/cluster/setup.html
 
+            headers = {'Content-type': 'application/json'}
+
             # action: enable_cluster
             payload = {}
             payload['action'] = 'enable_cluster'
@@ -117,7 +119,9 @@ def finish_cluster(names):
             payload['remote_node'] = name
             payload['remote_current_user'] = creds[0]
             payload['remote_current_password'] = creds[1]
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
+            payload['password'] = "**masked**"
+            payload['remote_current_password'] = "**masked**"
             print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
             # action: add_node
@@ -127,7 +131,8 @@ def finish_cluster(names):
             payload['password'] = creds[1]
             payload['port'] = 5984
             payload['host'] = name
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
+            payload['password'] = "**masked**"
             print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
             print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
@@ -145,14 +150,17 @@ def finish_cluster(names):
 def enable_cluster(nr_of_peers):
     creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
     if creds[0] and creds[1]:
+        headers = {'Content-type': 'application/json'}
+
         # http://docs.couchdb.org/en/stable/cluster/setup.html
         payload = {}
         payload['action'] = 'enable_cluster'
         payload['bind_address'] = '0.0.0.0'
         payload['username'] = creds[0]
         payload['password'] = creds[1]
-        payload['node_count'] = nr_of_peers
-        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
+        payload['node_count'] = '{0}'.format(nr_of_peers)
+        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
+        payload['password'] = "**masked**"
         print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
 def sleep_forever():
