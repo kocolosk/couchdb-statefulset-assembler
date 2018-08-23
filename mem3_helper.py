@@ -157,28 +157,29 @@ def finish_cluster(names):
                     remote_resp = requests.get(remote_membership_uri,  auth=creds)
             print("Node {0} has all node members in place!".format(name))
 
-
             print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
+
+        print("== Creating default databases ===")
+        setup_resp=requests.put("http://127.0.0.1:5984/_users",  auth=creds)
+        print ("\tRequest: PUT http://127.0.0.1:5984/_users")
+        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
+
+        setup_resp=requests.put("http://127.0.0.1:5984/_replicator",  auth=creds)
+        print ("\tRequest: PUT http://127.0.0.1:5984/_replicator")
+        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
+
+        setup_resp=requests.put("http://127.0.0.1:5984/_global_changes",  auth=creds)
+        print ("\tRequest: PUT http://127.0.0.1:5984/_global_changes")
+        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
+
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         if (setup_resp.status_code == 201):
             print("== CouchDB cluster setup done! ===")
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup")
-            print("CouchDB cluster setup done.")
-            print ("\tRequest: GET http://127.0.0.1:5984/_cluster_setup")
+            print ('\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"}')
             print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-            print("== Creating default databases ===")
-
-            setup_resp=requests.put("http://127.0.0.1:5984/_users",  auth=creds, headers=headers)
-            print ("\tRequest: PUT http://127.0.0.1:5984/_users")
-            print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
-            setup_resp=requests.put("http://127.0.0.1:5984/_replicator",  auth=creds, headers=headers)
-            print ("\tRequest: PUT http://127.0.0.1:5984/_replicator")
-            print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
-            setup_resp=requests.put("http://127.0.0.1:5984/_global_changes",  auth=creds, headers=headers)
-            print ("\tRequest: PUT http://127.0.0.1:5984/_global_changes")
+            setup_resp=requests.get("http://127.0.0.1:5984/_cluster_setup",  auth=creds)
+            print ('\tRequest: GET http://127.0.0.1:5984/_cluster_setup')
             print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
 
             print("Time to relax!")
@@ -199,7 +200,6 @@ if __name__ == '__main__':
     connect_the_dots(peer_names)
     print('Cluster membership populated!')
     if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
-        enable_cluster(len(peer_names))
         finish_cluster(peer_names)
     else:
         print ('Skipping cluster setup. Username and/or password not provided')
