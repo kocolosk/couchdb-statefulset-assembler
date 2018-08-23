@@ -107,14 +107,28 @@ def finish_cluster(names):
             # http://docs.couchdb.org/en/stable/cluster/setup.html
 
             # action: enable_cluster
-            payload = '"action": "enable_cluster", "bind_address":"0.0.0.0", "username":"{0}", "password":"{1}", "port": 5984, "node_count":"{2}"  "remote_node": "{3}", "remote_current_user": "{0}", "remote_current_password": "{1}"'.format(creds[0],creds[1],nr_of_peers,name)
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={payload},  auth=creds)
-            print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",payload)
+            payload = {}
+            payload['action'] = 'enable_cluster'
+            payload['bind_address'] = '0.0.0.0'
+            payload['username'] = creds[0]
+            payload['password'] = creds[1]
+            payload['port'] = 5984
+            payload['node_count'] = len(names)
+            payload['remote_node'] = name
+            payload['remote_current_user'] = creds[0]
+            payload['remote_current_password'] = creds[1]
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
+            print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
             # action: add_node
-            payload = '"action": "add_node", "host":"{0}", "port": 5984, "username": "{1}", "password":"{2}"'.format(name, creds[0],creds[1])
-            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={payload},  auth=creds)
-            print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",payload)
+            payload = {}
+            payload['action'] = 'add_node'
+            payload['username'] = creds[0]
+            payload['password'] = creds[1]
+            payload['port'] = 5984
+            payload['host'] = name
+            setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds)
+            print ("POST to http://127.0.0.1:5984/_cluster_setup returned",setup_resp.status_code,"payload=",json.dumps(payload))
 
             print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
         # At this point ALL peers have _nodes populated. Finish the cluster setup!
