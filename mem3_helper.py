@@ -44,14 +44,15 @@ def connect_the_dots(names):
             resp = requests.put(uri, data=json.dumps(doc), auth=creds)
         else:
             resp = requests.put(uri, data=json.dumps(doc))
-        while resp.status_code != 201:
-            print('Waiting for _nodes DB to be created.',uri,'returned', resp.status_code, flush=True)
+        while resp.status_code != 201 and resp.status_code != 409:
+            print('Waiting for _nodes DB to be created.',uri,'returned', resp.status_code, resp.json(), flush=True)
             time.sleep(5)
             if creds[0] and creds[1]:
                 resp = requests.put(uri, data=json.dumps(doc), auth=creds)
             else:
                 resp = requests.put(uri, data=json.dumps(doc))
-        print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
+        if resp.status_code == 201:
+            print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
 
 # Run action:enable_cluster on every CouchDB cluster node
 def enable_cluster(nr_of_peers):
