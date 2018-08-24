@@ -140,8 +140,8 @@ def are_nodes_in_sync(names):
             if ordered(local_resp.json()) != ordered(remote_resp.json()):
                 is_different = True
                 print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
-                records_in_local_but_not_in_remote = set(local_resp.json().cluster_nodes) - set(remote_resp.json().cluster_nodes)
-                records_in_remote_but_not_in_local = set(remote_resp.json().cluster_nodes) - set(local_resp.json().cluster_nodes)
+                records_in_local_but_not_in_remote = set(local_resp.json()['cluster_nodes']) - set(remote_resp.json()['cluster_nodes'])
+                records_in_remote_but_not_in_local = set(remote_resp.json()['cluster_nodes']) - set(local_resp.json()['cluster_nodes'])
                 if records_in_local_but_not_in_remote:
                     print ("Cluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
                 if records_in_remote_but_not_in_local:
@@ -150,8 +150,8 @@ def are_nodes_in_sync(names):
             is_different = True
  
         if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
-            print("local: ",local_resp.json().cluster_nodes)
-            print("remote: ",remote_resp.json().cluster_nodes)
+            print("local: ",local_resp.json()['cluster_nodes'])
+            print("remote: ",remote_resp.json()['cluster_nodes'])
         print('returnerar', not is_different)
     return not is_different
 
