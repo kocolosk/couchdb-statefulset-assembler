@@ -31,7 +31,9 @@ def discover_peers(service_record):
     # Erlang requires that we drop the trailing period from the absolute DNS
     # name to form the hostname used for the Erlang node. This feels hacky
     # but not sure of a more official answer
-    return [rdata.target.to_text()[:-1] for rdata in answers]
+    result = [rdata.target.to_text()[:-1] for rdata in answers]
+    print("\tGot the following peers' fqdm from DNS lookup:",result,flush=True)
+    return result
 
 @backoff.on_exception(
     backoff.expo,
@@ -135,20 +137,23 @@ def are_nodes_in_sync(names):
         # are fully primed with nodes data before progressing with
         # _cluster_setup
         if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
-            if len(local_resp.json()['cluster_nodes']) < 2:
-                # Minimum 2 nodes to form cluster!
+            if ordered(local_resp.json()) == ordered(remote_resp.json()):
+                print ("\tIn sync!")
+            else:
                 not_ready = True
-                print("\tNeed at least 2 cluster nodes in the _membership of pod",os.getenv("HOSTNAME"))
-            if ordered(local_resp.json()) != ordered(remote_resp.json()):
-                not_ready = True
-
-                # For logging only...
+                # Rest is for logging only...
                 records_in_local_but_not_in_remote = set(local_resp.json()['cluster_nodes']) - set(remote_resp.json()['cluster_nodes'])
                 if records_in_local_but_not_in_remote:
                     print ("\tCluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
                 records_in_remote_but_not_in_local = set(remote_resp.json()['cluster_nodes']) - set(local_resp.json()['cluster_nodes'])
                 if records_in_remote_but_not_in_local:
                     print ("\tCluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
+
+            # Cover the case where local pod has 1 record only
+            if len(local_resp.json()['cluster_nodes']) < 2:
+                # Minimum 2 nodes to form cluster!
+                not_ready = True
+                print("\tNeed at least 2 cluster nodes in the _membership of pod",os.getenv("HOSTNAME"))
         else:
             not_ready = True
     return not not_ready
@@ -160,7 +165,6 @@ def sleep_forever():
 if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
     connect_the_dots(peer_names)
-    print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
 
     # loop until all CouchDB nodes discovered
     while not are_nodes_in_sync(peer_names):
