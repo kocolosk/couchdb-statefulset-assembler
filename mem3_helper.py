@@ -164,6 +164,7 @@ def are_nodes_in_sync(names):
     # "source"
     local_membership_uri = "http://127.0.0.1:5984/_membership"
     print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
+    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
     if creds[0] and creds[1]:
         local_resp = requests.get(local_membership_uri,  auth=creds)
     else:
@@ -182,6 +183,9 @@ def are_nodes_in_sync(names):
         # are fully primed with nodes data before progressing with
         # _cluster_setup
         if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
+            if len(local_resp.json()) < 2:
+                # Minimum 2 nodes to form cluster!
+                is_different = True
             if ordered(local_resp.json()) != ordered(remote_resp.json()):
                 is_different = True
                 print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
