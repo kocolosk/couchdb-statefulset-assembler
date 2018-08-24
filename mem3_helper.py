@@ -114,7 +114,8 @@ def are_nodes_in_sync(names):
         local_resp = requests.get(local_membership_uri)
 
     # If any difference is found - set to true
-    is_different = False;
+    is_different = False
+
     # Step through every peer. Ensure they are "ready" before progressing.
     for name in names:
         print("Probing {0} for cluster membership".format(name))
@@ -123,6 +124,11 @@ def are_nodes_in_sync(names):
             remote_resp = requests.get(remote_membership_uri,  auth=creds)
         else:
             remote_resp = requests.get(remote_membership_uri)
+
+        if len(names) < 2:
+            # Minimum 2 nodes to form cluster!
+            is_different = True   
+
         # Compare local and remote _mebership data. Make sure the set
         # of nodes match. This will ensure that the remote nodes
         # are fully primed with nodes data before progressing with
@@ -142,6 +148,10 @@ def are_nodes_in_sync(names):
                     print ("Cluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
         else:
             is_different = True
+ 
+        if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
+            print("local: ",local_resp.json().cluster_nodes)
+            print("remote: ",remote_resp.json().cluster_nodes)
         print('returnerar', not is_different)
     return not is_different
 
