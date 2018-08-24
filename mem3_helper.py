@@ -94,11 +94,6 @@ def finish_cluster(names):
     else:
         print("This pod is intentionally skipping the call to http://127.0.0.1:5984/_cluster_setup")
 
-def diff(first, second):
-        second = set(second)
-        return [item for item in first if item not in second]
-
-
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.ConnectionError,
@@ -126,6 +121,8 @@ def are_nodes_in_sync(names):
         remote_membership_uri = "http://{0}:5984/_membership".format(name)
         if creds[0] and creds[1]:
             remote_resp = requests.get(remote_membership_uri,  auth=creds)
+        else:
+            remote_resp = requests.get(remote_membership_uri)
         # Compare local and remote _mebership data. Make sure the set
         # of nodes match. This will ensure that the remote nodes
         # are fully primed with nodes data before progressing with
@@ -137,14 +134,15 @@ def are_nodes_in_sync(names):
             if ordered(local_resp.json()) != ordered(remote_resp.json()):
                 is_different = True
                 print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
-                records_in_local_but_not_in_remote = diff(local_resp.json().cluster_nodes, remote_resp.json().cluster_nodes)
-                records_in_remote_but_not_in_local = diff(remote_resp.json().cluster_nodes, local_resp.json().cluster_nodes)
+                records_in_local_but_not_in_remote = set(local_resp.json().cluster_nodes) - set(remote_resp.json().cluster_nodes)
+                records_in_remote_but_not_in_local = set(remote_resp.json().cluster_nodes) - set(local_resp.json().cluster_nodes)
                 if records_in_local_but_not_in_remote:
                     print ("Cluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
                 if records_in_remote_but_not_in_local:
                     print ("Cluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
         else:
             is_different = True
+        print('returnerar', not is_different)
     return not is_different
 
 def sleep_forever():
