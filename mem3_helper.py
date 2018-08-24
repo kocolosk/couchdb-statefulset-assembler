@@ -3,6 +3,9 @@
 This script grabs the list of pod names behind the headless service
 associated with our StatefulSet and feeds those as `couchdb@FQDN`
 nodes to mem3.
+
+As a final step - on just one of the nodes - the cluster finalize is triggered.
+For that part to happen we need username and password.
 """
 
 import json
@@ -54,24 +57,6 @@ def connect_the_dots(names):
         if resp.status_code == 201:
             print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
 
-# Run action:enable_cluster on every CouchDB cluster node
-def enable_cluster(nr_of_peers):
-    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
-    if creds[0] and creds[1]:
-        headers = {'Content-type': 'application/json'}
-        print ("=== Enabling cluster mode ===")
-        # http://docs.couchdb.org/en/stable/cluster/setup.html
-        payload = {}
-        payload['action'] = 'enable_cluster'
-        payload['bind_address'] = '0.0.0.0'
-        payload['username'] = creds[0]
-        payload['password'] = creds[1]
-        payload['node_count'] = nr_of_peers
-        setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
-        payload['password'] = "**masked**"
-        print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
-        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
 # Compare (json) objects - order does not matter. Credits to:
 # https://stackoverflow.com/a/25851972
 def ordered(obj):
@@ -82,7 +67,7 @@ def ordered(obj):
     else:
         return obj
 
-# Run action:finish_cluster on one and only one CouchDB cluster node
+# Run action:finish_cluster on one (and only one) CouchDB cluster node
 def finish_cluster(names):
     # The HTTP POST to /_cluster_setup should be done to
     # one (and only one) of the CouchDB cluster nodes.
@@ -94,52 +79,15 @@ def finish_cluster(names):
     # on the "first" pod only with this hack:
     if (os.getenv("HOSTNAME").endswith("-0")):
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
-
-        headers = {'Content-type': 'application/json'}
-        print ("=== Adding nodes to CouchDB cluster via the “setup coordination node” ===")
-        for name in names:
-            # Exclude "this" pod
-            if (name.split(".",1)[0] != os.getenv("HOSTNAME")):
-                # action: enable_cluster
-                payload = {}
-                payload['action'] = 'enable_cluster'
-                payload['bind_address'] = '0.0.0.0'
-                payload['username'] = creds[0]
-                payload['password'] = creds[1]
-                payload['port'] = 5984
-                payload['node_count'] = len(names)
-                payload['remote_node'] = name
-                payload['remote_current_user'] = creds[0]
-                payload['remote_current_password'] = creds[1]
-                setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
-                payload['password'] = "**masked**"
-                payload['remote_current_password'] = "**masked**"
-                print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
-                print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
-                # action: add_node
-                payload = {}
-                payload['action'] = 'add_node'
-                payload['username'] = creds[0]
-                payload['password'] = creds[1]
-                payload['port'] = 5984
-                payload['host'] = name
-                setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json.dumps(payload),  auth=creds, headers=headers)
-                payload['password'] = "**masked**"
-                print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
-                print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
-
-
+        print("== Get the cluster up and running ===")
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
+        print ('\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"}')
+        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
         if (setup_resp.status_code == 201):
-            print("== CouchDB cluster setup done! ===")
-            print ('\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"}')
-            print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
+            print ("\tSweet! Just a final check for the logs...")
             setup_resp=requests.get("http://127.0.0.1:5984/_cluster_setup",  auth=creds)
             print ('\tRequest: GET http://127.0.0.1:5984/_cluster_setup')
             print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
-
             print("Time to relax!")
         else:
             print('Ouch! Failed the final step: http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
@@ -157,7 +105,7 @@ def diff(first, second):
     max_tries=10
 )
 # Check if the _membership API on all (known) CouchDB nodes have the same values.
-# Returns true if sam. False in any other situation.
+# Returns true if same. False in any other situation.
 def are_nodes_in_sync(names):
     # Make sure that ALL (known) CouchDB cluster peers have been
     # have the same _membership data.Use "this" nodes memebership as
@@ -207,6 +155,7 @@ if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
     connect_the_dots(peer_names)
     print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
+
     # loop until all CouchDB nodes discovered
     while not are_nodes_in_sync(peer_names):
         time.sleep(5)
