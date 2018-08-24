@@ -67,7 +67,7 @@ def ordered(obj):
     else:
         return obj
 
-# Run action:finish_cluster on one (and only one) CouchDB cluster node
+# Call action:finish_cluster on one (and only one) CouchDB cluster node
 def finish_cluster(names):
     # The HTTP POST to /_cluster_setup should be done to
     # one (and only one) of the CouchDB cluster nodes.
@@ -90,9 +90,10 @@ def finish_cluster(names):
             print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
             print("Time to relax!")
         else:
-            print('Ouch! Failed the final step: http://127.0.0.1:5984/_cluster_setup returned {0}'.format(setup_resp.status_code))
+            print('Ouch! Failed the final step finalizing the cluster.')
     else:
-        print("This pod is intentionally skipping the call to http://127.0.0.1:5984/_cluster_setup")
+        print('This pod is intentionally skipping the POST to http://127.0.0.1:5984/_cluster_setup {"action": "finish_cluster"}')
+
 
 @backoff.on_exception(
     backoff.expo,
@@ -106,7 +107,6 @@ def are_nodes_in_sync(names):
     # have the same _membership data.Use "this" nodes memebership as
     # "source"
     local_membership_uri = "http://127.0.0.1:5984/_membership"
-    print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
     creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))   
     if creds[0] and creds[1]:
         local_resp = requests.get(local_membership_uri,  auth=creds)
@@ -139,20 +139,16 @@ def are_nodes_in_sync(names):
                 is_different = True
             if ordered(local_resp.json()) != ordered(remote_resp.json()):
                 is_different = True
-                print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
+
+                # For logging only...
                 records_in_local_but_not_in_remote = set(local_resp.json()['cluster_nodes']) - set(remote_resp.json()['cluster_nodes'])
-                records_in_remote_but_not_in_local = set(remote_resp.json()['cluster_nodes']) - set(local_resp.json()['cluster_nodes'])
                 if records_in_local_but_not_in_remote:
-                    print ("Cluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
+                    print ("\tCluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
+                records_in_remote_but_not_in_local = set(remote_resp.json()['cluster_nodes']) - set(local_resp.json()['cluster_nodes'])
                 if records_in_remote_but_not_in_local:
-                    print ("Cluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
+                    print ("\tCluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
         else:
             is_different = True
- 
-        if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
-            print("local: ",local_resp.json()['cluster_nodes'])
-            print("remote: ",remote_resp.json()['cluster_nodes'])
-        print('returnerar', not is_different)
     return not is_different
 
 def sleep_forever():
