@@ -51,7 +51,7 @@ def connect_the_dots(names):
                 resp = requests.put(uri, data=json.dumps(doc), auth=creds)
             else:
                 resp = requests.put(uri, data=json.dumps(doc))
-        print('Adding CouchDB cluster node', name, "to this pod's CouchDB", flush=True)
+        print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
 
 # Run action:enable_cluster on every CouchDB cluster node
 def enable_cluster(nr_of_peers):
@@ -128,37 +128,7 @@ def finish_cluster(names):
                 print ("\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload:",json.dumps(payload))
                 print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
 
-        # Make sure that ALL CouchDB cluster peers have been
-        # primed with _nodes data before /_cluster_setup
-        # Use the _membership of "this" pod's CouchDB as reference
-        local_membership_uri = "http://127.0.0.1:5984/_membership"
-        print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
-        if creds[0] and creds[1]:
-            local_resp = requests.get(local_membership_uri,  auth=creds)
-        else:
-            local_resp = requests.get(local_membership_uri)
-        # Step through every peer. Ensure they are "ready" before progressing.
-        for name in names:
-            print("Probing {0} for cluster membership".format(name))
-            remote_membership_uri = "http://{0}:5984/_membership".format(name)
-            if creds[0] and creds[1]:
-                remote_resp = requests.get(remote_membership_uri,  auth=creds)
-            # Compare local and remote _mebership data. Make sure the set
-            # of nodes match. This will ensure that the remote nodes
-            # are fully primed with nodes data before progressing with
-            # _cluster_setup
-            while (remote_resp.status_code != 200) or (ordered(local_resp.json()) != ordered(remote_resp.json())):
-                # print ("remote_resp.status_code",remote_resp.status_code)
-                # print (ordered(local_resp.json()))
-                # print (ordered(remote_resp.json()))
-                print('Waiting for node {0} to have all node members populated'.format(name),flush=True)
-                time.sleep(5)
-                if creds[0] and creds[1]:
-                    remote_resp = requests.get(remote_membership_uri,  auth=creds)
-            print("Node {0} has all node members in place!".format(name))
 
-            print('CouchDB cluster peer {} added to "setup coordination node"'.format(name))
-        # At this point ALL peers have _nodes populated. Finish the cluster setup!
 
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         if (setup_resp.status_code == 201):
@@ -175,19 +145,66 @@ def finish_cluster(names):
     else:
         print("This pod is intentionally skipping the call to http://127.0.0.1:5984/_cluster_setup")
 
+def diff(first, second):
+        second = set(second)
+        return [item for item in first if item not in second]
+
+# Check if the _membership API on all (known) CouchDB nodes have the same values.
+# Returns true if sam. False in any other situation.
+def are_nodes_in_sync(names):
+    # Make sure that ALL (known) CouchDB cluster peers have been
+    # have the same _membership data.Use "this" nodes memebership as
+    # "source"
+    local_membership_uri = "http://127.0.0.1:5984/_membership"
+    print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
+    if creds[0] and creds[1]:
+        local_resp = requests.get(local_membership_uri,  auth=creds)
+    else:
+        local_resp = requests.get(local_membership_uri)
+
+    # If any difference is found - set to true
+    is_different = False;
+    # Step through every peer. Ensure they are "ready" before progressing.
+    for name in names:
+        print("Probing {0} for cluster membership".format(name))
+        remote_membership_uri = "http://{0}:5984/_membership".format(name)
+        if creds[0] and creds[1]:
+            remote_resp = requests.get(remote_membership_uri,  auth=creds)
+        # Compare local and remote _mebership data. Make sure the set
+        # of nodes match. This will ensure that the remote nodes
+        # are fully primed with nodes data before progressing with
+        # _cluster_setup
+        if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
+            if ordered(local_resp.json()) != ordered(remote_resp.json()):
+                is_different = True
+                print ("Fetching CouchDB node mebership from this pod: {0}".format(local_membership_uri),flush=True)
+                records_in_local_but_not_in_remote = diff(local_resp.json().cluster_nodes, remote_resp.json().cluster_nodes)
+                records_in_remote_but_not_in_local = diff(remote_resp.json().cluster_nodes, local_resp.json().cluster_nodes)
+                if records_in_local_but_not_in_remote:
+                    print ("Cluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
+                if records_in_remote_but_not_in_local:
+                    print ("Cluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
+        else:
+            is_different = True
+    return not is_different
+
 def sleep_forever():
     while True:
         time.sleep(5)
 
 if __name__ == '__main__':
     peer_names = discover_peers(construct_service_record())
-    print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
-    if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
-        enable_cluster(len(peer_names))
     connect_the_dots(peer_names)
+    print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
+    # loop until all CouchDB nodes discovered
+    while not are_nodes_in_sync(names):
+        time.sleep(5)
+        peer_names = discover_peers(construct_service_record())
+        connect_the_dots(peer_names)
     print('Cluster membership populated!')
+    
     if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
         finish_cluster(peer_names)
     else:
-        print ('Skipping cluster setup. Username and/or password not provided')
+        print ('Skipping cluster final setup. Username and/or password not provided')
     sleep_forever()
