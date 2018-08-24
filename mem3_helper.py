@@ -149,6 +149,12 @@ def diff(first, second):
         second = set(second)
         return [item for item in first if item not in second]
 
+
+@backoff.on_exception(
+    backoff.expo,
+    requests.exceptions.ConnectionError,
+    max_tries=10
+)
 # Check if the _membership API on all (known) CouchDB nodes have the same values.
 # Returns true if sam. False in any other situation.
 def are_nodes_in_sync(names):
@@ -197,7 +203,7 @@ if __name__ == '__main__':
     connect_the_dots(peer_names)
     print("Got the following peers' fqdm from DNS lookup:",peer_names,flush=True)
     # loop until all CouchDB nodes discovered
-    while not are_nodes_in_sync(names):
+    while not are_nodes_in_sync(peer_names):
         time.sleep(5)
         peer_names = discover_peers(construct_service_record())
         connect_the_dots(peer_names)
