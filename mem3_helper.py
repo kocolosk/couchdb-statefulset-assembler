@@ -114,7 +114,7 @@ def are_nodes_in_sync(names):
         local_resp = requests.get(local_membership_uri)
 
     # If any difference is found - set to true
-    is_different = False
+    not_ready = False
 
     # Step through every peer. Ensure they are "ready" before progressing.
     for name in names:
@@ -127,18 +127,20 @@ def are_nodes_in_sync(names):
 
         if len(names) < 2:
             # Minimum 2 nodes to form cluster!
-            is_different = True   
+            not_ready = True
+            print("\tNeed at least 2 DNS records to start with. Got ",len(names))
 
         # Compare local and remote _mebership data. Make sure the set
         # of nodes match. This will ensure that the remote nodes
         # are fully primed with nodes data before progressing with
         # _cluster_setup
         if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
-            if len(local_resp.json()) < 2:
+            if len(local_resp.json()['cluster_nodes']) < 2:
                 # Minimum 2 nodes to form cluster!
-                is_different = True
+                not_ready = True
+                print("\tNeed at least 2 cluster nodes in the _membership of pod",os.getenv("HOSTNAME"))
             if ordered(local_resp.json()) != ordered(remote_resp.json()):
-                is_different = True
+                not_ready = True
 
                 # For logging only...
                 records_in_local_but_not_in_remote = set(local_resp.json()['cluster_nodes']) - set(remote_resp.json()['cluster_nodes'])
@@ -148,8 +150,8 @@ def are_nodes_in_sync(names):
                 if records_in_remote_but_not_in_local:
                     print ("\tCluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
         else:
-            is_different = True
-    return not is_different
+            not_ready = True
+    return not not_ready
 
 def sleep_forever():
     while True:
