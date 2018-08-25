@@ -32,7 +32,7 @@ def discover_peers(service_record):
     # name to form the hostname used for the Erlang node. This feels hacky
     # but not sure of a more official answer
     result = [rdata.target.to_text()[:-1] for rdata in answers]
-    print("\tGot the following peers' fqdm from DNS lookup:",result,flush=True)
+    print("\t| Got the following peers' fqdm from DNS lookup:",result,flush=True)
     return result
 
 def backoff_hdlr(details):
@@ -40,15 +40,6 @@ def backoff_hdlr(details):
            "calling function {target} with args {args} and kwargs "
            "{kwargs}".format(**details))
 
-def pod_not_ready_yet(details):
-    print ('\tConnection failure. CouchDB is not responding. Will retry.')
-
-@backoff.on_exception(
-    backoff.expo,
-    requests.exceptions.ConnectionError,
-    max_tries=3,
-    on_giveup=pod_not_ready_yet
-)
 def connect_the_dots(names):
 
     # Ordinal Index: For a StatefulSet with N replicas, each Pod in the StatefulSet
@@ -84,12 +75,15 @@ def connect_the_dots(names):
             uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
             doc = {}
             print('Adding CouchDB cluster node', name, "to this pod's CouchDB.")
-            print ('\tRequest: PUT',uri)
-            if creds[0] and creds[1]:
-                resp = requests.put(uri, data=json.dumps(doc), auth=creds)
-            else:
-                resp = requests.put(uri, data=json.dumps(doc))
-            print ("\tResponse:", setup_resp.status_code, setup_resp.json(),flush=True)
+            print ('\t| Request: PUT',uri)
+            try:
+                if creds[0] and creds[1]:
+                    resp = requests.put(uri, data=json.dumps(doc), auth=creds)
+                else:
+                    resp = requests.put(uri, data=json.dumps(doc))
+                print ("\t| Response:", setup_resp.status_code, setup_resp.json(),flush=True)
+            except requests.exceptions.ConnectionError:
+                print ('\t| Connection failure. CouchDB not responding. Will retry.')
 
 # Compare (json) objects - order does not matter. Credits to:
 # https://stackoverflow.com/a/25851972
@@ -115,13 +109,13 @@ def finish_cluster(names):
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
         print("== Get the cluster up and running ===")
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
-        print ('\tRequest: POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"}')
-        print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
+        print ('\t| Request: POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"}')
+        print ("\t|\tResponse:", setup_resp.status_code, setup_resp.json())
         if (setup_resp.status_code == 201):
-            print ("\tSweet! Just a final check for the logs...")
+            print ("\t| Sweet! Just a final check for the logs...")
             setup_resp=requests.get("http://127.0.0.1:5984/_cluster_setup",  auth=creds)
-            print ('\tRequest: GET http://127.0.0.1:5984/_cluster_setup')
-            print ("\t\tResponse:", setup_resp.status_code, setup_resp.json())
+            print ('\t| Request: GET http://127.0.0.1:5984/_cluster_setup')
+            print ("\t|\tResponse:", setup_resp.status_code, setup_resp.json())
             print("Time to relax!")
         else:
             print('Ouch! Failed the final step finalizing the cluster.')
@@ -162,7 +156,7 @@ def are_nodes_in_sync(names):
         if len(names) < 2:
             # Minimum 2 nodes to form cluster!
             not_ready = True
-            print("\tNeed at least 2 DNS records to start with. Got ",len(names))
+            print("\t| Need at least 2 DNS records to start with. Got ",len(names))
 
         # Compare local and remote _mebership data. Make sure the set
         # of nodes match. This will ensure that the remote nodes
@@ -170,22 +164,22 @@ def are_nodes_in_sync(names):
         # _cluster_setup
         if (remote_resp.status_code == 200) and (local_resp.status_code == 200):
             if ordered(local_resp.json()) == ordered(remote_resp.json()):
-                print ("\tIn sync!")
+                print ("\t| In sync!")
             else:
                 not_ready = True
                 # Rest is for logging only...
                 records_in_local_but_not_in_remote = set(local_resp.json()['cluster_nodes']) - set(remote_resp.json()['cluster_nodes'])
                 if records_in_local_but_not_in_remote:
-                    print ("\tCluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
+                    print ("\t| Cluster members in {0} not yet present in {1}: {2}".format(os.getenv("HOSTNAME"), name.split(".",1)[0], records_in_local_but_not_in_remote))
                 records_in_remote_but_not_in_local = set(remote_resp.json()['cluster_nodes']) - set(local_resp.json()['cluster_nodes'])
                 if records_in_remote_but_not_in_local:
-                    print ("\tCluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
+                    print ("\t| Cluster members in {0} not yet present in {1}: {2}".format(name.split(".",1)[0], os.getenv("HOSTNAME"), records_in_remote_but_not_in_local))
 
             # Cover the case where local pod has 1 record only
             if len(local_resp.json()['cluster_nodes']) < 2:
                 # Minimum 2 nodes to form cluster!
                 not_ready = True
-                print("\tNeed at least 2 cluster nodes in the _membership of pod",os.getenv("HOSTNAME"))
+                print("\t| Need at least 2 cluster nodes in the _membership of pod",os.getenv("HOSTNAME"))
         else:
             not_ready = True
     return not not_ready
