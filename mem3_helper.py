@@ -35,10 +35,19 @@ def discover_peers(service_record):
     print("\tGot the following peers' fqdm from DNS lookup:",result,flush=True)
     return result
 
+def backoff_hdlr(details):
+    print ("Backing off {wait:0.1f} seconds afters {tries} tries "
+           "calling function {target} with args {args} and kwargs "
+           "{kwargs}".format(**details))
+
+def pod_not_ready_yet(details):
+    print ('\tConnection failure. CouchDB is not responding. Will retry.')
+
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.ConnectionError,
-    max_tries=10
+    max_tries=3,
+    on_giveup=pod_not_ready_yet
 )
 def connect_the_dots(names):
 
@@ -75,7 +84,7 @@ def connect_the_dots(names):
             uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
             doc = {}
             print('Adding CouchDB cluster node', name, "to this pod's CouchDB.")
-            print ('\tRequest: GET',uri)
+            print ('\tRequest: PUT',uri)
             if creds[0] and creds[1]:
                 resp = requests.put(uri, data=json.dumps(doc), auth=creds)
             else:
