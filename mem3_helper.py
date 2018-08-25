@@ -81,7 +81,7 @@ def connect_the_dots(names):
                     resp = requests.put(uri, data=json.dumps(doc), auth=creds)
                 else:
                     resp = requests.put(uri, data=json.dumps(doc))
-                print ("\t| Response:", setup_resp.status_code, setup_resp.json(),flush=True)
+                print ("\t| Response:", resp.status_code, resp.json(),flush=True)
             except requests.exceptions.ConnectionError:
                 print ('\t| Connection failure. CouchDB not responding. Will retry.')
 
