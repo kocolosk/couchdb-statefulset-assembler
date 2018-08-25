@@ -41,23 +41,53 @@ def discover_peers(service_record):
     max_tries=10
 )
 def connect_the_dots(names):
-    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
+
+    # Ordinal Index: For a StatefulSet with N replicas, each Pod in the StatefulSet
+    # will be assigned an integer ordinal, from 0 up through N-1, that is unique over the Set.
+    # Approach: get the Ordinal index of this pod and make sure that the list of name
+    # include all those ordinals.
+    # By looking at this pods Ordinal, make sure that all DNS records for
+    # pods having lesser Ordinal are found before adding any nodes to CouchDB.
+    # This is done to PREVENT the following case:
+    # (1) POD with ordnial 1 get DNS records for ordinal 1 and 2.
+    # (2) POD with ordinal 2 get DNS records for ordinal 1 and 2.
+    # (3) The are_nodes_in_sync function will give green light and
+    #     no further discovery is taken place.
+    # (4) Pod with ordinal 0 will get are_nodes_in_sync=true and cluster
+    #     setup will fail.
+
+    ordinal_of_this_pod = int(os.getenv("HOSTNAME").split("-")[-1])
+    expected_ordinals = set(range(0, ordinal_of_this_pod))
+    found_ordinals = Set()
     for name in names:
-        uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
-        doc = {}
-        if creds[0] and creds[1]:
-            resp = requests.put(uri, data=json.dumps(doc), auth=creds)
-        else:
-            resp = requests.put(uri, data=json.dumps(doc))
-        while resp.status_code != 201 and resp.status_code != 409:
-            print('Waiting for _nodes DB to be created.',uri,'returned', resp.status_code, resp.json(), flush=True)
-            time.sleep(5)
+        # Get the podname, get the stuff after last - and convert to int
+        found_ordinals.add(int(name.split(".",1)[0].split("-")[-1]));
+
+    print("expected_ordinals",expected_ordinals)
+    print("found ordnials",found_ordinals)
+
+    # Are all expected_ordinals are part of found_ordinals?
+    if( expected_ordinals - found_ordinals):
+        print ('Expected to get at least pod(s)', expected_ordinals - found_ordinals, 'among the DNS records. Will retry.')
+    else:
+        creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
+        for name in names:
+            uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
+            doc = {}
+
             if creds[0] and creds[1]:
                 resp = requests.put(uri, data=json.dumps(doc), auth=creds)
             else:
                 resp = requests.put(uri, data=json.dumps(doc))
-        if resp.status_code == 201:
-            print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
+            while resp.status_code != 201 and resp.status_code != 409:
+                print('Waiting for _nodes DB to be created.',uri,'returned', resp.status_code, resp.json(), flush=True)
+                time.sleep(5)
+                if creds[0] and creds[1]:
+                    resp = requests.put(uri, data=json.dumps(doc), auth=creds)
+                else:
+                    resp = requests.put(uri, data=json.dumps(doc))
+            if resp.status_code == 201:
+                print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
 
 # Compare (json) objects - order does not matter. Credits to:
 # https://stackoverflow.com/a/25851972
