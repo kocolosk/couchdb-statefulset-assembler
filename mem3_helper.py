@@ -63,8 +63,8 @@ def connect_the_dots(names):
         # Get the podname, get the stuff after last - and convert to int
         found_ordinals.add(int(name.split(".",1)[0].split("-")[-1]));
 
-    print("expected_ordinals",expected_ordinals)
-    print("found ordnials",found_ordinals)
+    # print("expected_ordinals",expected_ordinals)
+    # print("found ordnials",found_ordinals)
 
     # Are there expected ordinals that are not part of the found ordinals?
     if( expected_ordinals - found_ordinals):
@@ -107,7 +107,7 @@ def finish_cluster(names):
     # on the "first" pod only with this hack:
     if (os.getenv("HOSTNAME").endswith("-0")):
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
-        print("== Get the cluster up and running ===")
+        print("Get the cluster up and running")
         setup_resp=requests.post("http://127.0.0.1:5984/_cluster_setup", json={"action": "finish_cluster"},  auth=creds)
         print ('\t| Request: POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"}')
         print ("\t|\tResponse:", setup_resp.status_code, setup_resp.json())
@@ -120,7 +120,7 @@ def finish_cluster(names):
         else:
             print('Ouch! Failed the final step finalizing the cluster.')
     else:
-        print('This pod is intentionally skipping the POST to http://127.0.0.1:5984/_cluster_setup {"action": "finish_cluster"}')
+        print('Intentionally skipping the POST to http://127.0.0.1:5984/_cluster_setup {"action": "finish_cluster"}')
 
 
 @backoff.on_exception(
@@ -202,5 +202,5 @@ if __name__ == '__main__':
     if (os.getenv("COUCHDB_USER") and os.getenv("COUCHDB_PASSWORD")):
         finish_cluster(peer_names)
     else:
-        print ('Skipping cluster final setup. Username and/or password not provided')
+        print ('Skipping final cluster setup. Username and/or password not provided')
     sleep_forever()
