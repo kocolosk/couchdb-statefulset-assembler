@@ -66,28 +66,21 @@ def connect_the_dots(names):
     print("expected_ordinals",expected_ordinals)
     print("found ordnials",found_ordinals)
 
-    # Are all expected_ordinals are part of found_ordinals?
+    # Are there expected ordinals that are not part of the found ordinals?
     if( expected_ordinals - found_ordinals):
-        print ('Expected to get at least pod(s)', expected_ordinals - found_ordinals, 'among the DNS records. Will retry.')
+        print ('Expected to get at least the following pod ordinal(s)', expected_ordinals - found_ordinals, 'among the DNS records. Will retry.')
     else:
         creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
         for name in names:
             uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
             doc = {}
-
+            print('Adding CouchDB cluster node', name, "to this pod's CouchDB.")
+            print ('\tRequest: GET',uri)
             if creds[0] and creds[1]:
                 resp = requests.put(uri, data=json.dumps(doc), auth=creds)
             else:
                 resp = requests.put(uri, data=json.dumps(doc))
-            while resp.status_code != 201 and resp.status_code != 409:
-                print('Waiting for _nodes DB to be created.',uri,'returned', resp.status_code, resp.json(), flush=True)
-                time.sleep(5)
-                if creds[0] and creds[1]:
-                    resp = requests.put(uri, data=json.dumps(doc), auth=creds)
-                else:
-                    resp = requests.put(uri, data=json.dumps(doc))
-            if resp.status_code == 201:
-                print('Adding CouchDB cluster node', name, "to this pod's CouchDB. Response code:", resp.status_code ,flush=True)
+            print ("\tResponse:", setup_resp.status_code, setup_resp.json(),flush=True)
 
 # Compare (json) objects - order does not matter. Credits to:
 # https://stackoverflow.com/a/25851972
