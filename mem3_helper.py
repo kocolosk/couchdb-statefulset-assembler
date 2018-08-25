@@ -58,7 +58,7 @@ def connect_the_dots(names):
 
     ordinal_of_this_pod = int(os.getenv("HOSTNAME").split("-")[-1])
     expected_ordinals = set(range(0, ordinal_of_this_pod))
-    found_ordinals = set()
+    found_ordinals = set([])
     for name in names:
         # Get the podname, get the stuff after last - and convert to int
         found_ordinals.add(int(name.split(".",1)[0].split("-")[-1]));
