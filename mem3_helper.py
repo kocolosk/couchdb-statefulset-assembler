@@ -32,7 +32,7 @@ def discover_peers(service_record):
     # name to form the hostname used for the Erlang node. This feels hacky
     # but not sure of a more official answer
     result = [rdata.target.to_text()[:-1] for rdata in answers]
-    print("\t| Got the following peers' fqdm from DNS lookup:",result,flush=True)
+    print("\t| Got the following peers' fqdn from DNS lookup:",result,flush=True)
     return result
 
 def backoff_hdlr(details):
