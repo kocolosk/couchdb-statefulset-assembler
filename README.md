@@ -12,7 +12,7 @@ If the deployment is scaled *up* after the initial creation those new Pods will
 be automatically added. Scaling *down* does not automatically remove the Pods
 from the membership database at this time.
 
-# Added functionality on top of upstream repo (kocolosk/couchdb-statefulset-assembler)
+### Added functionality on top of upstream repo (kocolosk/couchdb-statefulset-assembler)
 1. Ensure that all CouchDB containers get all peers registered in _node db_
 2. Do the POST http://127.0.0.1:5984/_cluster_setup , payload {"action": "finish_cluster"} on pod with ordinal nr 0 (if username and password provided)
 
