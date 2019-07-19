@@ -36,7 +36,7 @@ def discover_peers(service_record):
         expected_peers_count = int(expected_peers_count)
         print('Expecting', expected_peers_count, 'peers...')
     else:
-        print('Looks like COUCHDB_CLUSTER_SIZE is not set, will not wait for DNS...')
+        print('Looks like COUCHDB_CLUSTER_SIZE is not set, will not wait for DNS to fully propagate...')
     print('Resolving SRV record:', service_record)
     # Erlang requires that we drop the trailing period from the absolute DNS
     # name to form the hostname used for the Erlang node. This feels hacky
