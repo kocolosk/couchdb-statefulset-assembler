@@ -23,12 +23,12 @@ def construct_service_record():
 @backoff.on_exception(
     backoff.expo,
     dns.resolver.NXDOMAIN,
-    max_tries=10
+    max_tries=15
 )
 @backoff.on_exception(
     backoff.expo,
     PeerDiscoveryException,
-    max_tries=10
+    max_tries=15
 )
 def discover_peers(service_record):
     expected_peers_count = os.getenv('COUCHDB_CLUSTER_SIZE')
