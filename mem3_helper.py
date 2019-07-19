@@ -31,8 +31,9 @@ def construct_service_record():
     max_tries=10
 )
 def discover_peers(service_record):
-    expected_peers_count = int(os.getenv('COUCHDB_CLUSTER_SIZE'))
+    expected_peers_count = os.getenv('COUCHDB_CLUSTER_SIZE')
     if expected_peers_count:
+        expected_peers_count = int(expected_peers_count)
         print('Expecting', expected_peers_count, 'peers...')
     else:
         print('Looks like COUCHDB_CLUSTER_SIZE is not set, will not wait for DNS...')
