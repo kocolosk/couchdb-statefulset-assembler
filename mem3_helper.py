@@ -53,24 +53,28 @@ def discover_peers(service_record):
         print('Discovered', peers_count, 'peers:', peers)
     return peers
 
+def join_node(name):
+    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
+    uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
+    doc = {}
+    if creds[0] and creds[1]:
+        resp = requests.put(uri, data=json.dumps(doc), auth=creds)
+    else:
+        resp = requests.put(uri, data=json.dumps(doc))
+    return resp
+
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.ConnectionError,
     max_tries=10
 )
 def connect_the_dots(names):
-    creds = (os.getenv("COUCHDB_USER"), os.getenv("COUCHDB_PASSWORD"))
     for name in names:
-        uri = "http://127.0.0.1:5986/_nodes/couchdb@{0}".format(name)
-        doc = {}
-        if creds[0] and creds[1]:
-            resp = requests.put(uri, data=json.dumps(doc), auth=creds)
-        else:
-            resp = requests.put(uri, data=json.dumps(doc))
+        resp = join_node(name)
         while resp.status_code == 404:
             print('Waiting for _nodes DB to be created...')
             time.sleep(5)
-            resp = requests.put(uri, data=json.dumps(doc))
+            resp = join_node(name)
         print('Adding cluster member', name, resp.status_code)
 
 def sleep_forever():
